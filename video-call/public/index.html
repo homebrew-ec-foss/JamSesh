@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jamsesh Video Call</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 20px; background-color: #f0f2f5; color: #333; }
+        h1 { color: #0056b3; }
+        #localVideo, #remoteVideo {
+            width: 48%; /* Roughly half the screen */
+            max-width: 600px;
+            background-color: #000;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        #videoContainer {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 20px;
+        }
+        #controls {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.2s ease-in-out;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 15px;
+            font-size: 1.1em;
+            color: #555;
+        }
+        #peerList {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #eee;
+            background-color: #fff;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        #peerList ul {
+            list-style: none;
+            padding: 0;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        #peerList li {
+            padding: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed #eee;
+        }
+        #peerList li:last-child {
+            border-bottom: none;
+        }
+        #peerList li button {
+            padding: 5px 10px;
+            font-size: 0.9em;
+            background-color: #28a745;
+        }
+        #peerList li button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h1>Jamsesh Video Call Prototype</h1>
+
+    <div id="status">Your ID: <span id="myId">Connecting...</span></div>
+
+    <div id="videoContainer">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+
+    <div id="controls">
+        <button id="startLocalVideoBtn">Start My Video</button>
+        <button id="hangupBtn" disabled>Hang Up</button>
+    </div>
+
+    <div id="peerList">
+        <h2>Available Peers:</h2>
+        <ul id="peers">
+            <li>No peers available.</li>
+        </ul>
+    </div>
+
+    <script src="client.js"></script>
+</body>
+</html>
