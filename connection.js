@@ -26,6 +26,7 @@ const call = async e => {
     localVideoEl.srcObject = stream;
     localStream = stream;
 
+    // add local stream to peer connection
     await createPeerConnection();
 
     // create offer

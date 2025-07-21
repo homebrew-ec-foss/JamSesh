@@ -6,6 +6,7 @@ const constraints = {
     video: true,
 }
 
+// Get the video and audio stream from the user's device
 const getMicAndCamera = async(e) => {
     try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -15,6 +16,7 @@ const getMicAndCamera = async(e) => {
     }
 };
 
+// Show the video stream in the video element
 const showMyFeed = e => {
     console.log("showMyFeed works")
     videoEl.srcObject = stream;
@@ -22,6 +24,7 @@ const showMyFeed = e => {
     console.log(tracks);
 }
 
+// Stop the video and audio tracks
 const stopMyFeed = e => {
     const tracks = stream.getTracks();
     tracks.forEach(track => {
