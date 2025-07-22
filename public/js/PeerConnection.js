@@ -23,7 +23,7 @@ const init = () => {
     ws = new WebSocket("ws://localhost:8080");
     ws.onopen = () => {
         console.log("Websocket connected");
-        offerBtn.diasabled = false;
+        offerBtn.disabled = false;
     };
 
     ws.onmessage = async (event) => {
