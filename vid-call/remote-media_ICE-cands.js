@@ -29,4 +29,35 @@ peerConnection.onicecandidate=(event)=>  //runs when new ice candidate is found
             ));
         }
     };
-//todo: remote ice cands, offer,answer
+
+//runs when message is received from signaling server
+signalingServer.onmessage=async(message)=> 
+{
+	//message.data=JSON message sent by signaling server, contains offer, answer, ice cands.
+	const data=JSON.parse(message.data);
+	
+	//if you're the receiver (data parsed is your remote offer)
+	if(data.type=='offer')
+	{
+		await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+		const answer=await pc.createAnswer();
+		await pc.setLocalDescription(answer);
+		signalingServer.send(JSON.stringify(
+		{
+			type:'answer', answer
+		}
+		));
+	}
+	
+	// if you're the caller (data parsed is remote answer)
+	if(data.type=='answer')
+	{
+		await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+	}
+	
+	// remote ICE candidate.... second condition prevents code working with null if your signaling server sends it
+	if(data.type=='ice-candidate'&& data.candidate!=null)
+	{
+		await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); 		//adds ice cand
+	}
+}
