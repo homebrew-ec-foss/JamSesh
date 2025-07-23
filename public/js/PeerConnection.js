@@ -129,7 +129,6 @@ const rcvOffer = async () => {
 
     console.log('created and set local answer:', peerConnection.localDescription);
     ws.send(JSON.stringify({ type: 'answer', sdp: peerConnection.localDescription }));
-    statusSpan.textContent = 'Answer sent, SDP exchange complete.';
     answerBtn.disabled = true;
 };
 
