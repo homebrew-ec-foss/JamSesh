@@ -1,8 +1,12 @@
-let ws; 
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const startBtn = document.getElementById('startBtn');
+const endBtn = document.getElementById('endBtn');
+
+let ws;
+let localStream;
 let peerConnection;
-const offerBtn = document.getElementById('offerBtn');
-const answerBtn = document.getElementById('answerBtn');
-const rcvSdp = document.getElementById('rcvSdp');
+let isCallInProgress = false;
 
 const iceServers = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -17,123 +21,118 @@ const iceServers = [
     { urls: "stun:stun4.l.google.com:5349" }
 ];
 
-//initialization and creation of websocket connection
-
-const init = () => {
-    ws = new WebSocket("ws://localhost:8080");
-    ws.onopen = () => {
-        console.log("Websocket connected");
-        offerBtn.disabled = false;
-    };
-
-    ws.onmessage = async (event) => {
-        const data = JSON.parse(event.data);
-        console.log(`Received WS message: Type=${data.type || 'N/A'}`, data);
-        if (data.type === 'offer') {
-            // If offer is recieved, we are the callee
-            rcvSdp.textContent = JSON.stringify(data.sdp, null, 2);
-            answerBtn.disabled = false;
-            console.log('Offer received');
-        }
-        else if (data.type === 'answer') {
-            // If answer is recieved, we are the caller
-            rcvSdp.textContent = JSON.stringify(data.sdp, null, 2);
-            console.log('Answer received. SDP exchange complete');
-        }
-        else if (data.type === 'candidate') {
-            // for testing
-            console.log('ICE candidated received');
-        }
-        else {
-            // unrecognized message
-            console.log('Not recognized');
-        }
-    };
-
+window.onload = () => {
+    ws = new WebSocket("ws://localhost:8080"); 
+    ws.onmessage = handleSignalingMessage;
     ws.onclose = () => {
-        // Closing the connection
-        console.log('WebSocket disconnected.');
+        console.log("websocket disconected");
+        endCall();
     };
 
-    ws.onerror = (err) => {
-        // Error occured
-        console.error('WebSocket error:', err);
-    };
+    startBtn.addEventListener('click', startCall);
+    endBtn.addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'end-call' })); // end call mesg to sig. server
+        }
+        endCall();
+    });
 };
 
+async function handleSignalingMessage(event) {
+    const data = JSON.parse(event.data);
 
-// WebRTC SDP functions
+    if ((data.type === 'offer' || data.type === 'answer') && isCallInProgress) {
+        return; // ignores any new offer/answer if a call is already in progress
+    }
 
-// 1. caller creates offer and sends it over
-const sendOffer = async () => {
+    console.log("received signal:", data.type);
+
+    switch (data.type) {
+        case 'offer':
+            if (!peerConnection) {
+                await createPeerConnection();
+            }
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            ws.send(JSON.stringify({ type: 'answer', sdp: peerConnection.localDescription }));
+            isCallInProgress = true; // tracks for ongoing call
+            break;
+
+        case 'answer':
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            isCallInProgress = true;
+            break;
+
+        case 'ice-candidate':
+            if (peerConnection && data.candidate) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+            break;
+
+        case 'end-call':
+            endCall();
+            break;
+    }
+}
+
+async function startCall() {
+    if (isCallInProgress || peerConnection) return;
     
-    //initialized the peer connection
-    peerConnection = new RTCPeerConnection(iceServers);
-    console.log('PeerConnection initialized for offer');
-    // simulating sending of media stream
-    peerConnection.addTransceiver('audio', { direction: 'recvonly' });
-    peerConnection.addTransceiver('video', { direction: 'recvonly' });
-
-    peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-            // only testing for ice candidates
-            console.log('Ice candidates', event.candidate.candidate);
-            ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-        }
-    };
-
+    console.log("starting call");
+    await createPeerConnection();
+    
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-
-
-    console.log('Created and sent Offer:', peerConnection.localDescription);
     ws.send(JSON.stringify({ type: 'offer', sdp: peerConnection.localDescription }));
-    offerBtn.disabled = true;
-};
+}
 
-// 2. callee processes offer and sends answer
-const rcvOffer = async () => {
-
-    if (!peerConnection) {
-        // initialized the peer connection
-        peerConnection = new RTCPeerConnection(iceServers);
-        console.log('PeerConnection initialized for answer.');
-        // simulating sending of media stream
-        peerConnection.addTransceiver('audio', { direction: 'recvonly' });
-        peerConnection.addTransceiver('video', { direction: 'recvonly' });
-
-        peerConnection.onicecandidate = (event) => {
-            // only testing for ice candidates
-            if (event.candidate) {
-                console.log('Ice candidates', event.candidate.candidate);
-                ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-            }
-        };
+async function createPeerConnection() {
+    if (!localStream) {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+        } catch (error) {
+            console.error("accessing error", error);
+            return;
+        }
     }
+    peerConnection = new RTCPeerConnection({ iceServers });
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            ws.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+        }
+    };
+    peerConnection.ontrack = event => {
+        remoteVideo.srcObject = event.streams[0];
+    };
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+}
 
-    // recieved the SDP
-    const rcvSdpText = rcvSdp.textContent;
-    if (!rcvSdpText) {
-        console.error('No offer received');
+function endCall() {
+    if (!isCallInProgress && !peerConnection) {
         return;
     }
-    const rcvOfferSdp = JSON.parse(rcvSdpText);
 
-    // set remote Offer
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(rcvOfferSdp));
-    console.log('Remote offer');
+    console.log("ending call");
+    isCallInProgress = false; 
 
-    // create and set local Answer
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
 
-    console.log('created and set local answer:', peerConnection.localDescription);
-    ws.send(JSON.stringify({ type: 'answer', sdp: peerConnection.localDescription }));
-    statusSpan.textContent = 'Answer sent, SDP exchange complete.';
-    answerBtn.disabled = true;
-};
-
-// button function
-offerBtn.addEventListener('click', sendOffer);
-answerBtn.addEventListener('click', rcvOffer);
-window.onload = init;
+    remoteVideo.srcObject = null;
+    localVideo.srcObject = null;
+    remoteVideo.src = "";
+    localVideo.src = "";
+    remoteVideo.load();
+    localVideo.load();
+}
