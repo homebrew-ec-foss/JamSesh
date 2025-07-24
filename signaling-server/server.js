@@ -1,8 +1,11 @@
 // Loading ws (websocket) module
 const WebSocket = require('ws');
 
+// Defining port as dynamic render port
+const PORT = process.env.PORT || 8080;
+
 // Creating new websocket server instance
-const wss = new WebSocket.Server({port: 8080});
+const wss = new WebSocket.Server({port: PORT});
 
 // Handling incoming client connections
 wss.on('connection', function connection(ws) {    // Registering event handler (fn runs when client connects)
