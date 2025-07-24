@@ -20,7 +20,7 @@ const iceServers = [
 //initialization and creation of websocket connection
 
 const init = () => {
-    ws = new WebSocket("ws://localhost:8080");
+    ws = new WebSocket("wss://jamsesh.onrender.com");
     ws.onopen = () => {
         console.log("Websocket connected");
         offerBtn.disabled = false;
