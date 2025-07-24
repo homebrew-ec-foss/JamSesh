@@ -2,7 +2,7 @@
 const WebSocket = require('ws');
 
 // Creating new websocket client instance
-const ws = new WebSocket('ws://localhost:8080');
+const ws = new WebSocket('wss://jamsesh.onrender.com');
 
 // Handling connection open event
 ws.on('open', function open() {    // Registering event handler (fn runs when client connects)
