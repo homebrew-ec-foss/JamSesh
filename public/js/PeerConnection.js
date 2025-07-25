@@ -23,7 +23,7 @@ const iceServers = [
 //initialization and creation of websocket connection
 
 const init = () => {
-    ws = new WebSocket("wss://jamsesh.onrender.com");
+    ws = new WebSocket("wss://jamsesh-8wui.onrender.com");
     ws.onopen = () => {
         console.log("Websocket connected");
     };
