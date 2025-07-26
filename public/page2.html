@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JamSesh Video Call</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Fjalla+One&family=Playfair+Display&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #152238; /* Dark blue background from main page */
+            margin: 0;
+            padding: 20px; /* Add some padding around content */
+            font-family: 'Fjalla One', sans-serif; /* Consistent font */
+            color: white; /* White text */
+            display: flex;
+            flex-direction: column; /* Stack elements vertically */
+            align-items: center; /* Center horizontally */
+            min-height: 100vh; /* Ensure it takes full viewport height */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+
+        h1 {
+            font-size: 60px; /* Slightly smaller than main header but still prominent */
+            margin-top: 10px;
+            margin-bottom: 15px; /* Reduced space below h1 */
+            text-align: center;
+            color: white; /* Default color */
+            transition: color 0.4s, transform 0.3s, text-shadow 0.4s;
+            cursor: pointer;
+        }
+
+        h1:hover {
+            color: #00ffff; /* Cyan glow on hover */
+            transform: scale(1.02);
+            text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff;
+        }
+
+        h3 {
+            font-family: 'Playfair Display', serif; /* Consistent with intro text */
+            font-size: 24px;
+            color: #ffffffcc; /* Slightly transparent white */
+            text-align: center;
+        }
+
+        /* Styles for the container holding the "you" and "remote" labels */
+        .labels-row {
+            display: flex;
+            justify-content: center; /* Center labels horizontally */
+            gap: calc(500px + 30px); /* This gap helps maintain alignment if videos were visible */
+            width: 100%;
+            max-width: 1200px; /* Match video container max-width */
+            margin-bottom: 0; /* REMOVED SPACE BELOW LABELS-ROW */
+        }
+        /* Adjust for smaller screens where labels stack */
+        @media (max-width: 768px) {
+            .labels-row {
+                flex-direction: column; /* Stack labels vertically on small screens */
+                gap: 5px; /* Smaller gap when stacked */
+                align-items: center; /* Center labels when stacked */
+            }
+        }
+
+        /* ----- IMPORTANT: VIDEO ELEMENTS ARE HIDDEN AND TAKE NO SPACE ----- */
+        /* They remain in the HTML code as requested, but are not displayed. */
+        .video-container {
+            display: none; /* This makes the entire video section invisible and removes it from layout flow */
+        }
+        /* No other CSS for .video-wrapper or video as they are contained by display: none parent */
+
+
+        #controls {
+            display: flex;
+            gap: 25px; /* Spacing between buttons */
+            margin-top: 5px; /* Significantly reduced space above controls */
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 15px 30px; /* Adjusted padding for call buttons */
+            font-size: 24px; /* Slightly smaller font for call buttons */
+            font-family: 'Caveat', cursive; /* Consistent button font */
+            border: none;
+            border-radius: 8px; /* Consistent border-radius */
+            background-color: #0F52BA; /* Cobalt Blue from main page */
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s, opacity 0.3s, box-shadow 0.3s; /* Added opacity for disabled state */
+        }
+
+        button:hover {
+            background-color: #0c47a1; /* Darker Cobalt Blue */
+            transform: scale(1.03); /* Slight scale on hover */
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.5); /* Cyan glow on button hover */
+        }
+
+        #endBtn {
+            background-color: #DC3545; /* Red for end call */
+        }
+
+        #endBtn:hover {
+            background-color: #C82333; /* Darker red */
+            box-shadow: 0 0 12px rgba(255, 0, 0, 0.5); /* Red glow on hover */
+        }
+
+        /* Style for disabled buttons */
+        button:disabled {
+            background-color: #888; /* Grey out disabled buttons */
+            cursor: not-allowed;
+            opacity: 0.6; /* Make them slightly transparent */
+            transform: scale(1); /* No scale on disabled hover */
+            box-shadow: none; /* No shadow on disabled */
+        }
+        button:disabled:hover { /* Ensure no hover effects on disabled buttons */
+            background-color: #888;
+            transform: scale(1);
+            box-shadow: none;
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 48px;
+            }
+            #controls {
+                flex-direction: column; /* Stack buttons vertically on small screens */
+                gap: 15px;
+            }
+            button {
+                width: 80%; /* Make buttons wider */
+                max-width: 300px; /* Max width for stacked buttons */
+                font-size: 22px;
+                padding: 12px 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>JamSesh Video Call</h1>
+
+    <div class="labels-row">
+        <h3>you</h3>
+        <h3>remote</h3>
+    </div>
+
+    <div class="video-container">
+        <div class="video-wrapper">
+            <video id="localVideo" autoplay muted playsinline></video>
+        </div>
+        <div class="video-wrapper">
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="startBtn">start call</button>
+        <button id="endBtn">end call</button>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const endBtn = document.getElementById('endBtn');
+
+        // Initial state: Start button is enabled, End button is disabled
+        startBtn.disabled = false;
+        endBtn.disabled = true;
+
+        // Event listener for the "Start Call" button
+        startBtn.addEventListener('click', () => {
+            // Disable start button
+            startBtn.disabled = true;
+            // Enable end button
+            endBtn.disabled = false;
+            console.log("Video call started!"); // For debugging in console
+            // This is where you would typically initiate your actual WebRTC logic.
+        });
+
+        // Event listener for the "End Call" button
+        endBtn.addEventListener('click', () => {
+            // Enable start button
+            startBtn.disabled = false;
+            // Disable end button
+            endBtn.disabled = true;
+            console.log("Video call ended!"); // For debugging in console
+            // This is where you would typically clean up your actual WebRTC connection.
+        });
+    </script>
+    <script src="js/PeerConnection.js"></script>
+</body>
+</html>
