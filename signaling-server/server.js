@@ -29,4 +29,4 @@ wss.on('connection', function connection(ws) {    // Registering event handler (
 });
 
 // Printing confirmation message to terminal when server goes live
-console.log("WebSocket server running on ws://localhost:8080");
+console.log("WebSocket server running on wss://jamsesh-8wui.onrender.com");
