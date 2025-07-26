@@ -1,11 +1,7 @@
 let ws; 
 let peerConnection;
-const localVideo = document.getElementById('localVideo');
-const remoteVideo = document.getElementById('remoteVideo');
-const rcvSdp = document.getElementById('rcvSdp');
 let localStream;
 let isCallInProgress = false; 
-
 
 const iceServers = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -17,7 +13,32 @@ const iceServers = [
     { urls: "stun:stun3.l.google.com:3478" },
     { urls: "stun:stun3.l.google.com:5349" },
     { urls: "stun:stun4.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:5349" }
+    { urls: "stun:stun4.l.google.com:5349" },
+    {
+    url: 'turn:numb.viagenie.ca',
+    credential: 'muazkh',
+    username: 'webrtc@live.com'
+},
+{
+    url: 'turn:192.158.29.39:3478?transport=udp',
+    credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+    username: '28224511:1379330808'
+},
+{
+    url: 'turn:192.158.29.39:3478?transport=tcp',
+    credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+    username: '28224511:1379330808'
+},
+{
+    url: 'turn:turn.bistri.com:80',
+    credential: 'homeo',
+    username: 'homeo'
+ },
+ {
+    url: 'turn:turn.anyfirewall.com:443?transport=tcp',
+    credential: 'webrtc',
+    username: 'webrtc'
+}    
 ];
 
 //initialization and creation of websocket connection
@@ -44,11 +65,10 @@ const init = () => {
     startBtn.addEventListener('click', startCall);
     endBtn.addEventListener('click', () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'end-call' })); // end call mesg to sig. server
+            ws.send(JSON.stringify({ type: 'end-call' }));// end call mesg to sig. server
         }
         endCall();
     });
-
 };
 
 async function handleSignalingMessage(event) {
@@ -74,13 +94,13 @@ async function handleSignalingMessage(event) {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             ws.send(JSON.stringify({ type: 'answer', sdp: peerConnection.localDescription }));
-            isCallInProgress = true; // tracks for ongoing call
+            isCallInProgress = true;// tracks for ongoing call
             endBtn.disabled = false; 
             startBtn.disabled = true;
             break;
 
         case 'answer':
-            // caller recieves answer 
+            //caller recieves answer 
             if (!peerConnection) { 
                 console.error("Answer received but peerConnection not initialized for caller.");
                 return;
@@ -110,11 +130,10 @@ async function handleSignalingMessage(event) {
 }
 
 async function startCall() {
-    if (isCallInProgress || peerConnection) 
-    {
+    if (isCallInProgress || peerConnection) {
         console.warn("Call is already in progress");
     }
-    
+
     console.log("starting call");
     startBtn.disabled = true;
     await createPeerConnection();
@@ -134,46 +153,51 @@ async function startCall() {
 async function createPeerConnection() {
     if (!localStream) {
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localVideo.srcObject = localStream;
-            console.log("Local media streaming");
-            localVideo.muted = true;
-            await localVideo.play();
+            //getUserMedia==> getDisplayMedia
+            localStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
+            
+            // localVideo.srcObject = localStream;
+            // console.log("Screen + system audio sharing started");
+            // localVideo.muted = true; // so you won't echo your own audio
+            // await localVideo.play();
+            console.log("System audio is being transmitted");
+            
         } catch (error) {
-            console.error("accessing error", error);
+            console.error("accessing error:", error);
             localStream = null;
             return;
         }
     }
+
     peerConnection = new RTCPeerConnection({ iceServers });
     console.log('PeerConnection initialized.');
 
-    localStream.getTracks().forEach(track => {
-        // keeps iterating over the live audio and video to be sent
-        peerConnection.addTrack(track, localStream);
-        console.log(`Added local track: ${track.kind}`);
-    });
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+        peerConnection.addTrack(audioTracks[0], new MediaStream([audioTracks[0]]));
+        console.log("Added audio track only");
+    }
+
 
     peerConnection.ontrack = event => {
         // displays video and audio
         console.log('Remote track received. Stream:', event.streams[0]);
         remoteVideo.srcObject = event.streams[0];
-        remoteVideo.play().catch(e => console.error("Error playing remote video:", e)); 
+        remoteVideo.play().catch(e => console.error("Error playing remote video:", e));
     };
 
-        peerConnection.onconnectionstatechange = () => {
+    peerConnection.onconnectionstatechange = () => {
         console.log('Peer Connection State:', peerConnection.connectionState);
         if (peerConnection.connectionState === 'connected') {
-            console.log('P2P connection established ');
-            localVideo.muted = false; 
+            console.log('P2P connection established');
+            localVideo.muted = false;
         } else if (['disconnected', 'failed', 'closed'].includes(peerConnection.connectionState)) {
             console.log('P2P Connection Disconnected/Failed/Closed.');
-            if (isCallInProgress) { 
+            if (isCallInProgress) {
                 endCall();
             }
         }
     };
-
 
     peerConnection.onicecandidate = event => {
         if (event.candidate) {
@@ -182,6 +206,7 @@ async function createPeerConnection() {
     };
 }
 
+
 function endCall() {
     if (!isCallInProgress && !peerConnection) {
         //fallback for multiple endcall executions
@@ -189,7 +214,7 @@ function endCall() {
     }
 
     console.log("ending call");
-    isCallInProgress = false; 
+    isCallInProgress = false;
 
     if (peerConnection) {
         // close peer connection
