@@ -135,10 +135,13 @@ async function createPeerConnection() {
         try {
             //getUserMedia==> getDisplayMedia
             localStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
-            localVideo.srcObject = localStream;
-            console.log("Screen + system audio sharing started");
-            localVideo.muted = true; // so you won't echo your own audio
-            await localVideo.play();
+            
+            // localVideo.srcObject = localStream;
+            // console.log("Screen + system audio sharing started");
+            // localVideo.muted = true; // so you won't echo your own audio
+            // await localVideo.play();
+            console.log("System audio is being transmitted");
+            
         } catch (error) {
             console.error("accessing error:", error);
             localStream = null;
@@ -149,11 +152,12 @@ async function createPeerConnection() {
     peerConnection = new RTCPeerConnection({ iceServers });
     console.log('PeerConnection initialized.');
 
-    localStream.getTracks().forEach(track => {
-        // keeps iterating over the live audio and video to be sent
-        peerConnection.addTrack(track, localStream);
-        console.log(`Added local track: ${track.kind}`);
-    });
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+        peerConnection.addTrack(audioTracks[0], new MediaStream([audioTracks[0]]));
+        console.log("Added audio track only");
+    }
+
 
     peerConnection.ontrack = event => {
         // displays video and audio
