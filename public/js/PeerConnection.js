@@ -153,13 +153,7 @@ async function startCall() {
 async function createPeerConnection() {
     if (!localStream) {
         try {
-            //getUserMedia==> getDisplayMedia
             localStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
-            
-            // localVideo.srcObject = localStream;
-            // console.log("Screen + system audio sharing started");
-            // localVideo.muted = true; // so you won't echo your own audio
-            // await localVideo.play();
             console.log("System audio is being transmitted");
             
         } catch (error) {
@@ -178,19 +172,18 @@ async function createPeerConnection() {
         console.log("Added audio track only");
     }
 
-
     peerConnection.ontrack = event => {
-        // displays video and audio
+        // plays audio
         console.log('Remote track received. Stream:', event.streams[0]);
-        remoteVideo.srcObject = event.streams[0];
-        remoteVideo.play().catch(e => console.error("Error playing remote video:", e));
+        remoteAudio.srcObject = event.streams[0];
+        remoteAudio.play().catch(e => console.error("Error playing remote audio:", e));
     };
 
     peerConnection.onconnectionstatechange = () => {
         console.log('Peer Connection State:', peerConnection.connectionState);
         if (peerConnection.connectionState === 'connected') {
             console.log('P2P connection established');
-            localVideo.muted = false;
+            localAudio.muted = false;
         } else if (['disconnected', 'failed', 'closed'].includes(peerConnection.connectionState)) {
             console.log('P2P Connection Disconnected/Failed/Closed.');
             if (isCallInProgress) {
@@ -228,12 +221,12 @@ function endCall() {
         localStream = null;
     }
 
-    remoteVideo.srcObject = null;
-    localVideo.srcObject = null;
-    remoteVideo.src = "";
-    localVideo.src = "";
-    remoteVideo.load();
-    localVideo.load();
+    remoteAudio.srcObject = null;
+    localAudio.srcObject = null;
+    remoteAudio.src = "";
+    localAudio.src = "";
+    remoteAudio.load();
+    localAudio.load();
 }
 
 // button function
