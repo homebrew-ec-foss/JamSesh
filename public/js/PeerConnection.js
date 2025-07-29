@@ -220,6 +220,15 @@ function endCall() {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
+     const audioTrack = localStream.getAudioTracks()[0]; 
+    if (audioTrack) {
+        audioTrack.enabled = true; 
+    }
+        // For other participants' local streams
+    const otherAudioTrack = otherLocalStream.getAudioTracks()[0]; 
+    if (otherAudioTrack) {
+        otherAudioTrack.enabled = false; 
+    }
 
     remoteAudio.srcObject = null;
     localAudio.srcObject = null;
