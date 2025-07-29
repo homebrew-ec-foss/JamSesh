@@ -1,11 +1,15 @@
 // Loading ws (websocket) module
 const WebSocket = require('ws');
 
-// Defining port as dynamic render port
+/**
+Defining port as dynamic render port
 const PORT = process.env.PORT || 8080;
-
 // Creating new websocket server instance
 const wss = new WebSocket.Server({port: PORT});
+*/
+
+// For local server 
+const wss = new WebSocket.Server({port: 8080});
 
 // Handling incoming client connections
 wss.on('connection', function connection(ws) {    // Registering event handler (fn runs when client connects)
@@ -29,4 +33,4 @@ wss.on('connection', function connection(ws) {    // Registering event handler (
 });
 
 // Printing confirmation message to terminal when server goes live
-console.log("WebSocket server running on wss://jamsesh-8wui.onrender.com");
+console.log("WebSocket server running on wss://localhost:8080");

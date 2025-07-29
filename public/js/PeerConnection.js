@@ -44,12 +44,14 @@ const iceServers = [
 //initialization and creation of websocket connection
 
 const init = () => {
+    //For local host replace wss://jamsesh-8wui.onrender.com with wss://localhost:8080
     ws = new WebSocket("wss://jamsesh-8wui.onrender.com");
     ws.onopen = () => {
         console.log("Websocket connected");
     };
 
     ws.onmessage = handleSignalingMessage;
+
     ws.onclose = () => {
         // Closing the connection
         console.log('WebSocket disconnected.');
@@ -82,13 +84,13 @@ async function handleSignalingMessage(event) {
 
     switch (data.type) {
         case 'offer':
-            // callee initializes offer and sends
+            // caller initializes offer and sends
             if (!peerConnection) {
                 // for when it receives media
                 await createPeerConnection();
             }
 
-            if (!peerConnection) return; 
+            //if (!peerConnection) return; 
             
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
             const answer = await peerConnection.createAnswer();
@@ -100,7 +102,7 @@ async function handleSignalingMessage(event) {
             break;
 
         case 'answer':
-            //caller recieves answer 
+            //callee recieves offer and sends answers 
             if (!peerConnection) { 
                 console.error("Answer received but peerConnection not initialized for caller.");
                 return;
@@ -168,8 +170,40 @@ async function createPeerConnection() {
 
     const audioTracks = localStream.getAudioTracks();
     if (audioTracks.length > 0) {
-        peerConnection.addTrack(audioTracks[0], new MediaStream([audioTracks[0]]));
+        const audioSender = peerConnection.addTrack(audioTracks[0], localStream);
         console.log("Added audio track only");
+
+        const audioParameters = audioSender.getParameters();
+        if (!audioParameters.encodings) {
+            audioParameters.encodings = [{}];
+        }
+
+        audioParameters.encodings[0].maxBitrate = 512000;
+        audioParameters.encodings[0].priority = 'high';
+
+        try {
+            await audioSender.setParameters(audioParameters);
+            console.log('Audio sender parameters set to high bitrate:', audioParameters.encodings[0].maxBitrate, 'bps');
+        } catch (e) {
+            console.warn('Failed audio sender :', e);
+        }
+
+        
+        const audioTransceiver = peerConnection.getTransceivers().find(t => t.sender === audioSender);
+        if (audioTransceiver) {
+            try {
+                const capabilities = RTCRtpSender.getCapabilities('audio');
+                const opusCodec = capabilities.codecs.find(c => c.mimeType === 'audio/opus');
+                if (opusCodec) {
+                    audioTransceiver.setCodecPreferences([opusCodec]);
+                    console.log('Opus codec prioritizing audio transceiver.');
+                } else {
+                    console.warn('Opus codec not found');
+                }
+            } catch (e) {
+                console.error('Failed audio codec :', e);
+            }
+        }
     }
 
     peerConnection.ontrack = event => {
