@@ -87,10 +87,10 @@ async function handleSignalingMessage(event) {
             // caller initializes offer and sends
             if (!peerConnection) {
                 // for when it receives media
-                await createPeerConnection();
+                await createPeerConnection(false);
             }
 
-            //if (!peerConnection) return; 
+            if (!peerConnection) return; 
             
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
             const answer = await peerConnection.createAnswer();
@@ -138,7 +138,7 @@ async function startCall() {
 
     console.log("starting call");
     startBtn.disabled = true;
-    await createPeerConnection();
+    await createPeerConnection(true);
 
     if (!peerConnection) {
         // on failure
@@ -152,14 +152,35 @@ async function startCall() {
     console.log('Created and sent Offer.');
 }
 
-async function createPeerConnection() {
-    if (!localStream) {
+async function createPeerConnection(acquireLocalMedia) {
+    if (acquireLocalMedia && !localStream) {
         try {
-            localStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
-            console.log("System audio is being transmitted");
+                localStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
+                localStream.getVideoTracks().forEach(track => {
+                track.stop();
+                console.log("Stopped unwanted video track from getDisplayMedia.");
+            });
+
+            console.log("Audio sent by caller).");
             
+            localStream.getTracks().forEach(track => {
+                track.onended = () => {
+                    console.log("Audio share ended");
+                    if (isCallInProgress) { 
+                        endCall(); 
+                    } else {
+                            if (localStream) { 
+                            localStream.getTracks().forEach(t => t.stop());
+                            localStream = null;
+                            localAudio.srcObject = null; 
+                        }
+                        startBtn.disabled = false;
+                    }
+                };
+            });
+
         } catch (error) {
-            console.error("accessing error:", error);
+            console.error("Accessing media error:", error);
             localStream = null;
             return;
         }
@@ -168,6 +189,10 @@ async function createPeerConnection() {
     peerConnection = new RTCPeerConnection({ iceServers });
     console.log('PeerConnection initialized.');
 
+
+    //Optimizing for audio to be sent at higher bitrate
+    if(acquireLocalMedia && localStream)
+    {
     const audioTracks = localStream.getAudioTracks();
     if (audioTracks.length > 0) {
         const audioSender = peerConnection.addTrack(audioTracks[0], localStream);
@@ -188,7 +213,7 @@ async function createPeerConnection() {
             console.warn('Failed audio sender :', e);
         }
 
-        
+        // Audio formating for higher audio quality
         const audioTransceiver = peerConnection.getTransceivers().find(t => t.sender === audioSender);
         if (audioTransceiver) {
             try {
@@ -202,15 +227,47 @@ async function createPeerConnection() {
                 }
             } catch (e) {
                 console.error('Failed audio codec :', e);
+                }
             }
         }
+
     }
 
     peerConnection.ontrack = event => {
         // plays audio
-        console.log('Remote track received. Stream:', event.streams[0]);
-        remoteAudio.srcObject = event.streams[0];
-        remoteAudio.play().catch(e => console.error("Error playing remote audio:", e));
+        console.log('Remote track received', event.streams[0]);
+        if (remoteAudio) { 
+            remoteAudio.srcObject = event.streams[0];
+            remoteAudio.play()
+                .then(() => {
+                console.log("Remote audio playing automatically");
+                })
+                .catch(e => {
+                    if (e.name === "NotAllowedError" && e.message.includes("play() failed because the user didn't interact")) {
+                        console.warn("Autoplay blocked");
+
+                        const attemptPlay = () => {
+                            if (remoteAudio.paused) { 
+                                remoteAudio.play()
+                                .then(() => {
+                                    console.log("Remote audio playing after user click");
+                                    document.body.removeEventListener('click', attemptPlay);
+                                    document.body.removeEventListener('keypress', attemptPlay);
+                                })
+                                .catch(err => {
+                                    console.error("Failed to play remote audio even with click:", err);
+                                });
+                            }
+                        };
+                        document.body.addEventListener('click', attemptPlay, { once: true }); 
+                        document.body.addEventListener('keypress', attemptPlay, { once: true }); 
+                    
+                    } else {
+                    console.error("Error playing remote audio", e);                }
+                });
+        }else {
+        console.warn("Remote audio element not found");
+        }
     };
 
     peerConnection.onconnectionstatechange = () => {
@@ -253,15 +310,6 @@ function endCall() {
         // stops local media
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
-    }
-     const audioTrack = localStream.getAudioTracks()[0]; 
-    if (audioTrack) {
-        audioTrack.enabled = true; 
-    }
-        // For other participants' local streams
-    const otherAudioTrack = otherLocalStream.getAudioTracks()[0]; 
-    if (otherAudioTrack) {
-        otherAudioTrack.enabled = false; 
     }
 
     remoteAudio.srcObject = null;
