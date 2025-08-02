@@ -1,7 +1,9 @@
 let ws; 
-let peerConnection;
+const peerConnections = {}; // changed from single peerConnection to support multiple peers
 let localStream;
 let isCallInProgress = false; 
+let myClientId = null;
+
 
 const iceServers = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -80,50 +82,78 @@ async function handleSignalingMessage(event) {
         return; // ignores any new offer/answer if a call is already in progress
     }
 
+    if (data.type === 'init') {
+        myClientId = data.clientId;
+        console.log("I am", myClientId);
+        return;
+    }
+
     console.log("received signal:", data.type);
 
     switch (data.type) {
-        case 'offer':
-            // caller initializes offer and sends
-            if (!peerConnection) {
-                // for when it receives media
-                await createPeerConnection(false);
+        case 'new-client': {
+            const clientId = data.clientId;
+            const pc = await createPeerConnection(true, clientId);
+            peerConnections[clientId] = pc;
+
+            localStream.getAudioTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+            });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    ws.send(JSON.stringify({
+        type: 'offer',
+        to: clientId,
+        sdp: pc.localDescription,
+        from: myClientId
+    }));
+    break;
+}
+
+        //caller initializes offer and sends
+        case 'offer': {
+            let pc = peerConnections[data.from];
+            if (!pc) {
+                pc = await createPeerConnection(false, data.from);
+                peerConnections[data.from] = pc;
             }
 
-            if (!peerConnection) return; 
-            
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            ws.send(JSON.stringify({ type: 'answer', sdp: peerConnection.localDescription }));
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ type: 'answer', sdp: pc.localDescription, to: data.from, from: myClientId}));
             isCallInProgress = true;// tracks for ongoing call
             endBtn.disabled = false; 
             startBtn.disabled = true;
             break;
+        }
 
-        case 'answer':
-            //callee recieves offer and sends answers 
-            if (!peerConnection) { 
-                console.error("Answer received but peerConnection not initialized for caller.");
+        case 'answer': {
+            //callee receives offer and sends answers
+            const pc = peerConnections[data.from];
+            if (!pc) {
+                console.error("Answer received but peerConnection not initialized for caller:", data.from);
                 return;
             }
-
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            isCallInProgress = true;
-            endBtn.disabled = false;
-            startBtn.disabled = true;
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
             break;
+        }
 
-        case 'ice-candidate':
-            if (peerConnection && data.candidate) {
+
+        case 'ice-candidate': {
+            const pc = peerConnections[data.from];
+            if (pc && data.candidate) {
                 try {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
                     console.log('ICE candidate added:', data.candidate.candidate);
                 } catch (e) {
                     console.warn('ICE candidate error:', e);
                 }
             }
             break;
+        }
 
         case 'end-call':
             endCall();
@@ -131,28 +161,38 @@ async function handleSignalingMessage(event) {
     }
 }
 
-async function startCall() {
-    if (isCallInProgress || peerConnection) {
-        console.warn("Call is already in progress");
-    }
-
-    console.log("starting call");
-    startBtn.disabled = true;
-    await createPeerConnection(true);
-
-    if (!peerConnection) {
-        // on failure
-        startBtn.disabled = false;
+async function startCall(peerId) {
+    if (!peerId) {
+        console.error("startCall() called without a peerId!");
         return;
     }
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    ws.send(JSON.stringify({ type: 'offer', sdp: peerConnection.localDescription }));
-    console.log('Created and sent Offer.');
+    if (isCallInProgress || peerConnections[peerId]) {
+        console.warn("Call is already in progress or already calling", peerId);
+        return;
+    }
+
+    console.log("starting call with", peerId);
+    startBtn.disabled = true;
+
+    const pc = await createPeerConnection(true, peerId);
+    peerConnections[peerId] = pc;
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    ws.send(JSON.stringify({
+        type: 'offer',
+        sdp: pc.localDescription,
+        to: peerId,
+        from: myClientId
+    }));
+
+    console.log('Created and sent offer to', peerId);
 }
 
-async function createPeerConnection(acquireLocalMedia) {
+
+async function createPeerConnection(acquireLocalMedia, peerId) {
     if (acquireLocalMedia && !localStream) {
         try {
                 localStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
@@ -186,7 +226,7 @@ async function createPeerConnection(acquireLocalMedia) {
         }
     }
 
-    peerConnection = new RTCPeerConnection({ iceServers });
+    const peerConnection = new RTCPeerConnection({ iceServers });
     console.log('PeerConnection initialized.');
 
 
@@ -261,12 +301,13 @@ async function createPeerConnection(acquireLocalMedia) {
                         };
                         document.body.addEventListener('click', attemptPlay, { once: true }); 
                         document.body.addEventListener('keypress', attemptPlay, { once: true }); 
-                    
+
                     } else {
-                    console.error("Error playing remote audio", e);                }
+                    console.error("Error playing remote audio", e);                
+                    }
                 });
-        }else {
-        console.warn("Remote audio element not found");
+        } else {
+            console.warn("Remote audio element not found");
         }
     };
 
@@ -285,27 +326,33 @@ async function createPeerConnection(acquireLocalMedia) {
 
     peerConnection.onicecandidate = event => {
         if (event.candidate) {
-            ws.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+            ws.send(JSON.stringify({
+                type: 'ice-candidate',
+                to: peerId,
+                from: myClientId,
+                candidate: event.candidate
+}));
+
         }
     };
+
+    return peerConnection;
 }
 
-
 function endCall() {
-    if (!isCallInProgress && !peerConnection) {
-        //fallback for multiple endcall executions
+    if (!isCallInProgress && Object.keys(peerConnections).length === 0) {
+        //fallback for multiple calling executions
         return;
     }
 
     console.log("ending call");
     isCallInProgress = false;
 
-    if (peerConnection) {
-        // close peer connection
-        peerConnection.close();
-        peerConnection = null;
+    for (const id in peerConnections) {
+        peerConnections[id].close();
+        delete peerConnections[id];
     }
-    
+
     if (localStream) {
         // stops local media
         localStream.getTracks().forEach(track => track.stop());
