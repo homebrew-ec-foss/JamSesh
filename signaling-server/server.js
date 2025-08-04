@@ -1,36 +1,112 @@
-// Loading ws (websocket) module
+const express = require('express');
+const http = require('http');
 const WebSocket = require('ws');
 
-/**
-Defining port as dynamic render port
-const PORT = process.env.PORT || 8080;
-// Creating new websocket server instance
-const wss = new WebSocket.Server({port: PORT});
-*/
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server }); 
+const clients = new Map();
 
-// For local server 
-const wss = new WebSocket.Server({port: 8080});
+let masterClientId = null;
 
-// Handling incoming client connections
 wss.on('connection', function connection(ws) {    // Registering event handler (fn runs when client connects)
-    ws.on('message', function incoming(message) {    // Setting event listener for message events (whenever client sends data)
+    // new ID assigned for a new client
+    const clientId = Math.random().toString(36).substring(2, 10);
+    clients.set(clientId, ws);
+    ws.clientId = clientId;
+
+    console.log(`[Server] New client connected: ${clientId}`);
+
+
+    //sending new client info to the other connected clients
+    ws.send(JSON.stringify({
+        type: 'init', 
+        clientId: clientId,
+        allClients: Array.from(clients.keys()).filter(id => id !== clientId),
+    }));
+
+    clients.forEach((clientWs, id) => {
+        if (id !== clientId && clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(JSON.stringify({
+                type: 'new-client', 
+                clientId: clientId
+            }));
+        }
+    });
+
+    ws.on('message', function incoming(message) {   // Setting event listener for message events (whenever client sends data)
         const messageString = message.toString();
-        console.log(`Received and broadcasting: ${messageString}`); 
-        // Broadcasting data to all connected clients
-        wss.clients.forEach(function each(client) {    // Looping over all connected clients
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(messageString);    // Sending data to all connected clients
+        const data = JSON.parse(messageString);
+
+        if (data.to && clients.has(data.to)) {
+            const targetClient = clients.get(data.to);
+            if (targetClient && targetClient.readyState === WebSocket.OPEN) {
+                // Add 'from' field so the receiver knows who sent it
+                const relayedData = { ...data, from: ws.clientId };
+                targetClient.send(JSON.stringify(relayedData));
+                console.log(`[Server] Relayed ${data.type} from ${ws.clientId} to ${data.to}`);
+            }
+            else {
+                console.warn(`[Server] Target client ${data.to} is not available.`);
+            }
+        } 
+        else{
+                        switch (data.type) {
+                case 'set-master':
+                    masterClientId = ws.clientId;
+                    console.log(`[Server] Master set to ${masterClientId}`);
+                    // Broadcast to all *other* clients who the master is
+                    clients.forEach((clientWs, id) => {
+                        if (id !== ws.clientId && clientWs.readyState === WebSocket.OPEN) {
+                            clientWs.send(JSON.stringify({ type: 'set-master', masterId: masterClientId }));
+                        }
+                    });
+                    break;
+                case 'end-call':
+                    console.log(`[Server] Master ${ws.clientId} ended the call. Broadcasting.`);
+                    masterClientId = null; // Reset master
+                    // Broadcast the end-call signal to everyone except the sender
+                    clients.forEach((clientWs, id) => {
+                        if (id !== ws.clientId && clientWs.readyState === WebSocket.OPEN) {
+                           clientWs.send(JSON.stringify({ type: 'end-call', from: ws.clientId }));
+                        }
+                    });
+                    break;
+                default:
+                    console.log(`[Server] Received unhandled message type: ${data.type}`);
+            }
+        }
+
+    });
+    
+    ws.on('close', () => {
+        console.log("[Server] Client disconnected.");
+        clients.delete(ws.clientId);
+
+        if (ws.clientId === masterClientId) {
+            console.log(`[Server] Master has disconnected. Ending call for all.`);
+            masterClientId = null;
+        }
+
+        
+        clients.forEach((clientWs, id) => {
+            if (clientWs.readyState === WebSocket.OPEN) {
+                clientWs.send(JSON.stringify({
+                    type: 'client-left',
+                    clientId: ws.clientId
+                }));
             }
         });
     });
-        ws.on('close', () => {
-        console.log("[Server] Client disconnected.");
-    });
 
     ws.on('error', (error) => {
-        console.error("[Server] WebSocket error:", error);
+        console.error(`[Server] WebSocket error for client ${ws.clientId}:`, error);
     });
 });
 
-// Printing confirmation message to terminal when server goes live
-console.log("WebSocket server running on wss://localhost:8080");
+
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Access the app at http://localhost:${PORT}`);
+});
