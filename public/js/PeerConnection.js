@@ -125,7 +125,7 @@ async function createAndSendOffer(targetClientId) {
             }
 
             // Audio formating for higher audio quality
-            const audioTransceiver = peerConnection.getTransceivers().find(t => t.sender === audioSender);
+            const audioTransceiver = pc.getTransceivers().find(t => t.sender === audioSender);
             if (audioTransceiver) {
                 try {
                     const capabilities = RTCRtpSender.getCapabilities('audio');
