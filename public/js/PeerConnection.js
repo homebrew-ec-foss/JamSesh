@@ -6,6 +6,8 @@ let localStream;
 let isCallInProgress = false; 
 let allClientIds = [];
 
+const iceServers = [];
+
 //html references
 const localAudio = document.getElementById('localAudio');
 const remoteAudio = document.getElementById('remoteAudio');
@@ -302,11 +304,23 @@ async function handleSignalingMessage(event) {
 
 async function createPeerConnection(acquireLocalMedia, peerId) {
 
-    console.log(`Creating PeerConnection for ${peerId}...`);
-    const response = await fetch(""); // insert api endpoint url here
-
-    // Saving the response in the iceServers array
-    const iceServers = await response.json();
+    const sessionIceServers = [...iceServers];
+    try {
+        const response = await fetch("/api/get-turn-credentials");
+        if (response.ok) {
+            const turnServers = await response.json();
+            if (Array.isArray(turnServers) && turnServers.length > 0) {
+                sessionIceServers.push(...turnServers); // Add fetched TURN to the session array
+                console.log("Fetched TURN credentials and added to iceServers.");
+            } else {
+                console.warn("No TURN credentials fetched, proceeding with just STUN servers.");
+            }
+        } else {
+            console.warn(`Failed to fetch TURN credentials: ${response.status} ${response.statusText}`);
+        }
+    } catch (e) {
+        console.error("Error fetching TURN credentials:", e);
+    }
 
     const pc = new RTCPeerConnection({ iceServers: iceServers });
     console.log('PeerConnection initialized.');

@@ -2,12 +2,43 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 
+const path = require('path');
+const dotenv = require('dotenv');
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server }); 
 const clients = new Map();
 
+dotenv.config();
+
 let masterClientId = null;
+
+app.use(express.static(path.join(__dirname, '../public')));
+
+app.get('/api/get-turn-credentials', async (req, res) => {
+    try {
+        const turnApiLink = process.env.TURN_API_LINK;
+        if (!turnApiLink) {
+            console.error("Server: TURN_API_LINK not found in .env file!");
+            return res.status(500).json([]);
+        }
+
+        const response = await fetch(turnApiLink);
+
+        if (!response.ok) {
+            console.error(`Server: Failed to fetch TURN credentials from provider: ${response.status} ${response.statusText}`);
+            return res.status(response.status).json([]);
+        }
+
+        const turnCredentials = await response.json();
+        console.log("Server: Successfully fetched TURN credentials from provider");
+        res.json(turnCredentials);
+    } catch (error) {
+        console.error("Server: Error fetching TURN credentials:", error);
+        res.status(500).json([]);
+    }
+});
 
 wss.on('connection', function connection(ws) {    // Registering event handler (fn runs when client connects)
     // new ID assigned for a new client
