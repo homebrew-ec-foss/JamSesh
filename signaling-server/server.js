@@ -9,25 +9,6 @@ const clients = new Map();
 
 let masterClientId = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    var joinbtn = document.getElementById('joinBtn');
-    joinbtn.addEventListener('click', function() {
-        var click = new CustomEvent('announcement', {
-            detail: {
-                message: 'Button Click'
-            }
-        });
-    window.dispatchEvent(click)
-    });
-});
-
-window.addEventListener('announcement', function(e) {
-    console.log('Announcement:', e.detail.message);
-
-    var roomcode = Math.random() * 1000000
-    console.log(roomcode);
-})
-
 wss.on('connection', function connection(ws) {    // Registering event handler (fn runs when client connects)
     // new ID assigned for a new client
     const clientId = Math.random().toString(36).substring(2, 10);
