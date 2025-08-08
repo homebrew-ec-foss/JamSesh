@@ -71,7 +71,25 @@
       background-color: #0c47a1;
       transform: scale(1.05);
     }
+
+    #roomCode {
+        margin-top: 20px; /* Adjust as needed */
+        font-size: 24px;
+        color: #0F52BA;
+        text-align: center;
+        min-width: 150px; /* Give it a minimum width to prevent text from jumping */
+    }
+
+    #codeInput {
+        display: none; /* Hidden by default */
+        padding: 10px;
+        font-size: 18px;
+        border-radius: 5px;
+        border: 1px solid #0F52BA;
+        margin-top: 20px; /* Space between button and input */
+    }
   </style>
+  <script src="js/client.js" defer></script>
 </head>
 <body>
 
@@ -82,11 +100,8 @@
     <button id="hostBtn">Host a Jam</button>
     <button id="joinBtn">Join a Jam</button>
   </div>
-  <script>
-  const button = document.getElementById('hostBtn');
-  button.addEventListener('click', () => {
-    window.location.href = 'page2.html';
-  });
-</script>
+  <div id="roomCode" style="margin-top:20px; font-size: 24px; color: #0F52BA;"></div>
+  <input type="text" id="codeInput" placeholder="Enter room code..." />
+
 </body>
 </html>
