@@ -56,34 +56,20 @@
       font-size: 18px;
     }
   </style>
+  <script src="js/client.js" defer></script>
 </head>
 <body>
 
   <a href="index.html">← Back to Home</a>
   <h1>Host a Jam</h1>
-  <button onclick="generateJamCode()">Generate Jam Code</button>
+  <button id="generateCodeBtn">Generate Jam Code</button>
   <div id="jamCodeDisplay"></div>
 
   <!-- New Button -->
-  <button id="enterRoomBtn" onclick="enterRoom()">Enter the Room</button>
+  <button id="enterRoomBtn">Enter the Room</button>
 
   <script>
-    let currentCode = '';
-
-    function generateJamCode() {
-      currentCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      document.getElementById('jamCodeDisplay').textContent = `Your Jam Code: ${currentCode}`;
-      localStorage.setItem('jamCode', currentCode);
-      document.getElementById('enterRoomBtn').style.display = 'inline-block';
-    }
-
-    function enterRoom() {
-      if (currentCode) {
-        window.location.href = `page2.html?code=${currentCode}`;
-      } else {
-        alert("Please generate a jam code first.");
-      }
-    }
+    
   </script>
 
 </body>
