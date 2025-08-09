@@ -16,6 +16,11 @@ let masterClientId = null;
 
 app.use(express.static(path.join(__dirname, '../public')));
 
+app.get('/api/ping', (req, res) => {
+    console.log('ping message');
+    res.send('pong');
+});
+
 app.get('/api/get-turn-credentials', async (req, res) => {
     try {
         const turnApiLink = process.env.TURN_API_LINK;
