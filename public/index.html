@@ -6,6 +6,7 @@
   <!-- Google Fonts: Fjalla One for heading, Caveat for buttons -->
   <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Fjalla+One&display=swap" rel="stylesheet">
   <style>
+    
     body {
       background-color: #152238;
       margin: 0;
@@ -71,6 +72,7 @@
       background-color: #0c47a1;
       transform: scale(1.05);
     }
+    
   </style>
 </head>
 <body>
@@ -83,9 +85,16 @@
     <button id="joinBtn">Join a Jam</button>
   </div>
   <script>
-  const button = document.getElementById('hostBtn');
-  button.addEventListener('click', () => {
-    window.location.href = 'page2.html';
+  // Host button event listener
+  const hostBtn = document.getElementById('hostBtn');
+  hostBtn.addEventListener('click', () => {
+    window.location.href = 'host.html';
+  });
+
+  // Join button event listener
+  const joinBtn = document.getElementById('joinBtn');
+  joinBtn.addEventListener('click', () => {
+    window.location.href = 'join.html';
   });
 </script>
 </body>
