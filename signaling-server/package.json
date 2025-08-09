@@ -12,6 +12,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+<<<<<<< HEAD
+=======
+    "dotenv": "^17.2.1",
+>>>>>>> 528184af724940c75bc75c528a52da1b2fc24080
     "express": "^5.1.0",
     "ws": "^8.18.3"
   }
