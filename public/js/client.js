@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-      // Host button event listener
+    let roomCode = null;
+
     const hostBtn = document.getElementById('hostBtn');
     if (hostBtn) {
         hostBtn.addEventListener('click', () => {
@@ -8,7 +9,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Join button event listener
     const joinBtn = document.getElementById('joinBtn');
     if (joinBtn) {
         joinBtn.addEventListener('click', () => {
@@ -19,52 +19,47 @@ document.addEventListener('DOMContentLoaded', function() {
     const generateCodeBtn = document.getElementById('generateCodeBtn');
     if (generateCodeBtn) {
         generateCodeBtn.addEventListener('click', () => {
-            var roomcode = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-            document.getElementById('jamCodeDisplay').textContent = `Your Jam Code: ${roomcode}`;
+            roomCode = Math.floor(Math.random() * 1000000);
+            const roomCodeString = roomCode.toString().padStart(6, '0');
+            document.getElementById('jamCodeDisplay').textContent = `Your Jam Code: ${roomCodeString}`;
             document.getElementById('enterRoomBtn').style.display = 'inline-block';
-            localStorage.setItem('jamCode', roomcode);
-            console.log(roomcode);
+            console.log(roomCodeString);
         });
     }
 
-    const enterRoomBtn = document.getElementById('enterRoomBtn');
-    if (enterRoomBtn) {
-      if (roomcode) {
-        window.location.href = `page2.html?code=${roomcode}`;
-      }
-      else {
-        alert("Please generate a jam code first.");
-      }
-    }
-
-    const jamCode = document.getElementById('jamCode');
-    if (jamCode) {
-        jamCode.addEventListener('input', () => {
-            document.getElementById('enterRoomBtn').style.display = 'none';
-        });
-    }
-
-    const prepareToJoin = document.getElementById('prepareToJoin');
-    if (prepareToJoin) {
-        prepareToJoin.addEventListener('click', () => {
-            const code = document.getElementById('jamCode').value;
-            if (code && code.length >= 4) {
-                localStorage.setItem('jamCode', code);
-                document.getElementById('enterRoomBtn').style.display = 'inline-block';
-            }
-            else {
-                alert("Please enter a valid jam code.");
+    const enterRoomHostBtn = document.getElementById('enterRoomBtn');
+    if (enterRoomHostBtn) {
+        enterRoomHostBtn.addEventListener('click', () => {
+            if (roomCode !== null) {
+                window.location.href = `page2.html?code=${roomCode}`;
+            } else {
+                alert("Please generate a jam code first.");
             }
         });
     }
 
-    window.onload = () => {
-      const storedCode = localStorage.getItem('jamCode');
-      if (storedCode) {
-        document.getElementById('jamCode').value = storedCode;
-        document.getElementById('enterRoomBtn').style.display = 'inline-block';
-      }
-    };
+    const jamCodeInput = document.getElementById('jamCode');
+    if (jamCodeInput) {
+        jamCodeInput.addEventListener('input', () => {
+            const code = jamCodeInput.value;
+            const enterRoomBtn = document.getElementById('enterRoomBtn');
+            if (code.length === 6 && /^\d+$/.test(code)) {
+                enterRoomBtn.style.display = 'inline-block';
+            } else {
+                enterRoomBtn.style.display = 'none';
+            }
+        });
+    }
+
+    const enterRoomJoinBtn = document.getElementById('enterRoomBtn');
+    if (enterRoomJoinBtn && jamCodeInput) {
+        enterRoomJoinBtn.addEventListener('click', () => {
+            const code = jamCodeInput.value;
+            if (code.length === 6 && /^\d+$/.test(code)) {
+                window.location.href = `page2.html?code=${code}`;
+            } else {
+                alert("Please enter a valid 6-digit jam code.");
+            }
+        });
+    }
 });
-
-
