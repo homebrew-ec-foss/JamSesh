@@ -18,9 +18,6 @@ const ADAPTATION_INTERVAL_MS = 5000; // check network every 5 seconds
 //html references
 const localAudio = document.getElementById('localAudio');
 const remoteAudio = document.getElementById('remoteAudio');
-const startBtn = document.getElementById('startBtn');
-const endBtn = document.getElementById('endBtn');
-
 //initialization and creation of websocket connection
 
 const init = () => {
