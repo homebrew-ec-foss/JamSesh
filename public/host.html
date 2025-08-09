@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Host a Jam</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #152238;
+      color: white;
+      font-family: 'Fjalla One', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 60px;
+      margin-bottom: 40px;
+    }
+
+    button {
+      padding: 14px 28px;
+      font-size: 22px;
+      border: none;
+      border-radius: 10px;
+      background-color: #0F52BA;
+      color: white;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0c47a1;
+    }
+
+    #jamCodeDisplay {
+      font-size: 28px;
+      margin-top: 20px;
+      color: #00ffff;
+    }
+
+    #enterRoomBtn {
+      display: none;
+    }
+
+    a {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #00ffff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="index.html">← Back to Home</a>
+  <h1>Host a Jam</h1>
+  <button onclick="generateJamCode()">Generate Jam Code</button>
+  <div id="jamCodeDisplay"></div>
+
+  <!-- New Button -->
+  <button id="enterRoomBtn" onclick="enterRoom()">Enter the Room</button>
+
+  <script>
+    let currentCode = '';
+
+    function generateJamCode() {
+      currentCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      document.getElementById('jamCodeDisplay').textContent = `Your Jam Code: ${currentCode}`;
+      localStorage.setItem('jamCode', currentCode);
+      document.getElementById('enterRoomBtn').style.display = 'inline-block';
+    }
+
+    function enterRoom() {
+      if (currentCode) {
+        window.location.href = `page2.html?code=${currentCode}`;
+      } else {
+        alert("Please generate a jam code first.");
+      }
+    }
+  </script>
+
+</body>
+</html>
+
+

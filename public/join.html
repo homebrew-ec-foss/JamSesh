@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Join a Jam</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #152238;
+      color: white;
+      font-family: 'Fjalla One', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 60px;
+      margin-bottom: 30px;
+    }
+
+    input {
+      padding: 12px;
+      font-size: 20px;
+      border: none;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      width: 240px;
+      text-align: center;
+    }
+
+    button {
+      padding: 14px 28px;
+      font-size: 22px;
+      border: none;
+      border-radius: 10px;
+      background-color: #0F52BA;
+      color: white;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0c47a1;
+    }
+
+    #enterRoomBtn {
+      display: none;
+    }
+
+    a {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #00ffff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="index.html">← Back to Home</a>
+  <h1>Join a Jam</h1>
+
+  <input type="text" id="jamCode" placeholder="Enter Jam Code" oninput="handleInputChange()">
+  <button onclick="prepareToJoin()">Validate Code</button>
+  <button id="enterRoomBtn" onclick="enterRoom()">Enter the Room</button>
+
+  <script>
+    function handleInputChange() {
+      document.getElementById('enterRoomBtn').style.display = 'none';
+    }
+
+    function prepareToJoin() {
+      const code = document.getElementById('jamCode').value.trim().toUpperCase();
+      if (code && code.length >= 4) {
+        localStorage.setItem('jamCode', code);
+        document.getElementById('enterRoomBtn').style.display = 'inline-block';
+      } else {
+        alert("Please enter a valid jam code.");
+      }
+    }
+
+    function enterRoom() {
+      const code = document.getElementById('jamCode').value.trim().toUpperCase();
+      if (code) {
+        window.location.href = `page2.html?code=${code}`;
+      } else {
+        alert("Enter a Jam Code first.");
+      }
+    }
+
+    window.onload = () => {
+      const storedCode = localStorage.getItem('jamCode');
+      if (storedCode) {
+        document.getElementById('jamCode').value = storedCode;
+        document.getElementById('enterRoomBtn').style.display = 'inline-block';
+      }
+    };
+  </script>
+
+</body>
+</html>
