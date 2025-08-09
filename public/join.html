@@ -67,41 +67,8 @@
   <h1>Join a Jam</h1>
 
   <input type="text" id="jamCode" placeholder="Enter Jam Code" oninput="handleInputChange()">
-  <button onclick="prepareToJoin()">Validate Code</button>
-  <button id="enterRoomBtn" onclick="enterRoom()">Enter the Room</button>
-
-  <script>
-    function handleInputChange() {
-      document.getElementById('enterRoomBtn').style.display = 'none';
-    }
-
-    function prepareToJoin() {
-      const code = document.getElementById('jamCode').value.trim().toUpperCase();
-      if (code && code.length >= 4) {
-        localStorage.setItem('jamCode', code);
-        document.getElementById('enterRoomBtn').style.display = 'inline-block';
-      } else {
-        alert("Please enter a valid jam code.");
-      }
-    }
-
-    function enterRoom() {
-      const code = document.getElementById('jamCode').value.trim().toUpperCase();
-      if (code) {
-        window.location.href = `page2.html?code=${code}`;
-      } else {
-        alert("Enter a Jam Code first.");
-      }
-    }
-
-    window.onload = () => {
-      const storedCode = localStorage.getItem('jamCode');
-      if (storedCode) {
-        document.getElementById('jamCode').value = storedCode;
-        document.getElementById('enterRoomBtn').style.display = 'inline-block';
-      }
-    };
-  </script>
+  <button id="prepareToJoin()">Validate Code</button>
+  <button id="enterRoomBtn">Enter the Room</button>
 
 </body>
 </html>
