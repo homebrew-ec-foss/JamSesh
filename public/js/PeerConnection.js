@@ -15,6 +15,20 @@ const BITRATE_LEVELS = {
 };
 const ADAPTATION_INTERVAL_MS = 5000; // check network every 5 seconds
 
+// this is yor timesync instance
+var ts = timesync({
+  server: 'ws://localhost:8080', 
+  interval: 5000        // Sync every 5 seconds
+});
+
+// tells how far off device's clock is from server's clock
+let timeOffset = 0;
+ts.on('change', function (offset) {
+  timeOffset = offset;
+  console.log('Clock offset from server:', offset, 'ms');
+});
+
+
 //html references
 const localAudio = document.getElementById('localAudio');
 const remoteAudio = document.getElementById('remoteAudio');
