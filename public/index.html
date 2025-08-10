@@ -176,6 +176,98 @@
 </head>
 <body>
 
+  <div class="intro-text">Don't just listen, Connect with</div>
+  <header title="Welcome to JamSesh 🎶">JamSesh</header>
+
+  <div class="button-container">
+    <button id="hostBtn">Host a Jam</button>
+    <button id="joinBtn">Join a Jam</button>
+  </div>
+  <script>
+  const button = document.getElementById('hostBtn');
+  button.addEventListener('click', () => {
+    window.location.href = 'page2.html';
+  });
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Jam Page</title>
+  <!-- Google Fonts: Fjalla One for heading, Caveat for buttons -->
+  <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Fjalla+One&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #152238;
+      margin: 0;
+      padding: 0;
+      font-family: 'Fjalla One', sans-serif;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    .intro-text {
+      font-size: 28px;
+      margin-bottom: 0;
+      color: #ffffffcc;
+      font-family: 'Playfair Display', serif;
+      text-align: center;
+      transition: transform 0.3s ease, text-shadow 0.3s ease;
+      cursor: pointer;
+    }
+
+    /* Magnifying/glow effect on hover */
+    .intro-text:hover {
+      transform: scale(1.1);
+      text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+    }
+
+    header {
+      font-size: 90px;
+      margin-bottom: 30px;
+      margin-top: 5px;
+      text-align: center;
+      transition: color 0.4s, transform 0.3s, text-shadow 0.4s;
+      cursor: pointer;
+    }
+
+    header:hover {
+      color: #00ffff;
+      transform: scale(1.05);
+      text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
+    }
+
+    .button-container {
+      display: flex;
+      gap: 30px;
+    }
+
+    button {
+      padding: 20px 40px;
+      font-size: 28px;
+      font-family: 'Caveat', cursive;
+      border: none;
+      border-radius: 10px;
+      background-color: #0F52BA;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    button:hover {
+      background-color: #0c47a1;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+
   <!-- Hover-enhanced intro line -->
   <div class="intro-text">Don't just listen, Connect with</div>
 
