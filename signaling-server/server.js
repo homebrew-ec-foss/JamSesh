@@ -7,9 +7,8 @@ const dotenv = require('dotenv');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-const rooms = new Map();
-// const clients = new Map();
+const wss = new WebSocket.Server({ server }); 
+const clients = new Map();
 
 dotenv.config();
 
@@ -48,31 +47,20 @@ app.get('/api/get-turn-credentials', async (req, res) => {
 wss.on('connection', function connection(ws) {    // Registering event handler (fn runs when client connects)
     // new ID assigned for a new client
     const clientId = Math.random().toString(36).substring(2, 10);
-    // clients.set(clientId, ws);
+    clients.set(clientId, ws);
     ws.clientId = clientId;
-    
 
     console.log(`[Server] New client connected: ${clientId}`);
 
-    // TODO: listening for room code from client and logging to console
 
-    if (rooms.has(roomcode)) {
-        rooms.get(roomcode).set(clientId, ws);
-    }
-    else {
-        const newRoom = new Map();
-        newRoom.set(clientId, ws);
-        rooms.set(roomcode, newRoom);
-    }
-
-    // sending new client info to the other connected clients
+    //sending new client info to the other connected clients
     ws.send(JSON.stringify({
         type: 'init', 
         clientId: clientId,
-        allClients: Array.from(rooms.get(roomcode).keys()).filter(id => id !== clientId),
+        allClients: Array.from(clients.keys()).filter(id => id !== clientId),
     }));
 
-    rooms.get(roomcode).forEach((clientWs, id) => {
+    clients.forEach((clientWs, id) => {
         if (id !== clientId && clientWs.readyState === WebSocket.OPEN) {
             clientWs.send(JSON.stringify({
                 type: 'new-client', 
@@ -85,8 +73,8 @@ wss.on('connection', function connection(ws) {    // Registering event handler (
         const messageString = message.toString();
         const data = JSON.parse(messageString);
 
-        if (data.to && rooms.get(roomcode).has(data.to)) {
-            const targetClient = rooms.get(roomcode).get(data.to);
+        if (data.to && clients.has(data.to)) {
+            const targetClient = clients.get(data.to);
             if (targetClient && targetClient.readyState === WebSocket.OPEN) {
                 // Add 'from' field so the receiver knows who sent it
                 const relayedData = { ...data, from: ws.clientId };
@@ -103,7 +91,7 @@ wss.on('connection', function connection(ws) {    // Registering event handler (
                     masterClientId = ws.clientId;
                     console.log(`[Server] Master set to ${masterClientId}`);
                     // Broadcast to all *other* clients who the master is
-                    rooms.get(roomcode).forEach((clientWs, id) => {
+                    clients.forEach((clientWs, id) => {
                         if (id !== ws.clientId && clientWs.readyState === WebSocket.OPEN) {
                             clientWs.send(JSON.stringify({ type: 'set-master', masterId: masterClientId }));
                         }
@@ -113,7 +101,7 @@ wss.on('connection', function connection(ws) {    // Registering event handler (
                     console.log(`[Server] Master ${ws.clientId} ended the call. Broadcasting.`);
                     masterClientId = null; // Reset master
                     // Broadcast the end-call signal to everyone except the sender
-                    rooms.get(roomcode).forEach((clientWs, id) => {
+                    clients.forEach((clientWs, id) => {
                         if (id !== ws.clientId && clientWs.readyState === WebSocket.OPEN) {
                            clientWs.send(JSON.stringify({ type: 'end-call', from: ws.clientId }));
                         }
@@ -128,7 +116,7 @@ wss.on('connection', function connection(ws) {    // Registering event handler (
     
     ws.on('close', () => {
         console.log("[Server] Client disconnected.");
-        rooms.get(roomcode).delete(ws.clientId);
+        clients.delete(ws.clientId);
 
         if (ws.clientId === masterClientId) {
             console.log(`[Server] Master has disconnected. Ending call for all.`);
@@ -136,7 +124,7 @@ wss.on('connection', function connection(ws) {    // Registering event handler (
         }
 
         
-        rooms.get(roomcode).forEach((clientWs, id) => {
+        clients.forEach((clientWs, id) => {
             if (clientWs.readyState === WebSocket.OPEN) {
                 clientWs.send(JSON.stringify({
                     type: 'client-left',
