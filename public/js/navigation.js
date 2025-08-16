@@ -22,9 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const generateCodeBtn = document.getElementById('generateCodeBtn');
     if(generateCodeBtn) {
         generateCodeBtn.addEventListener('click', () => {
-            const roomCode = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+            roomCode = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
             document.getElementById('jamCodeDisplay').textContent = `Your Jam Code: ${roomCode}`;
-            document.getElementById('enterRoomBtn').style.display = 'inline-block';
+            document.getElementById('enterRoomHostBtn').style.display = 'inline-block';
             console.log(roomCode);
         });
     }
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const jamCodeInput = document.getElementBtId('jamCode');
+    const jamCodeInput = document.getElementById('jamCode');
     const enterRoomJoinBtn = document.getElementById('enterRoomJoinBtn');
     if (jamCodeInput) {
         jamCodeInput.addEventListener('input', () => {
@@ -54,6 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.type === 'init') {
                     clientId = data.clientId;
                     console.log(`I am ${clientId}. Existing clients:`, allClientIds);
+                    ws.send(JSON.stringify({
+                        type: 'validation',
+                        code: jamCode,
+                        from: clientId
+                    }));
                     return;
                 }
                 if (data.type === 'validation') {
@@ -66,12 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     enterRoomJoinBtn.style.display = 'none';
                 }
             }
-            ws.send(JSON.stringify({
-                type: 'validation',
-                code: jamCode,
-                from: clientID
-            }))
-        })
+        });
     }
 
     if (enterRoomJoinBtn) {
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else {
                 alert("Please enter a valid jam code.")
             }
-        })
+        });
     }
 
-})
+});

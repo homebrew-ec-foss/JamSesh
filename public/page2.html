@@ -168,6 +168,22 @@
             endBtn.disabled = true;
             console.log("Audio call ended!"); 
         });
+        // Read URL parameters to determine role and code
+        const params = new URLSearchParams(window.location.search);
+        const role = params.get('role');
+        const roomCode = params.get('code');
+
+        // Dynamically load the relevant JS file
+        if (role === 'host') {
+            const script = document.createElement('script');
+            script.src = 'host.js';
+            document.body.appendChild(script);
+        }
+        else if (role === 'join') {
+            const script = document.createElement('script');
+            script.src = 'joiner.js';
+            document.body.appendChild(script);
+            }
     </script>
     <script src="js/PeerConnection.js"></script>
 </body>
