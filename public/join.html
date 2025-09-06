@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Join a Jam</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Fjalla+One&family=Playfair+Display&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #152238;
+      color: white;
+      font-family: 'Fjalla One', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 60px;
+      margin-bottom: 30px;
+    }
+
+    .input-container {
+      display: flex; flex-direction: column; align-items: center;
+      margin-bottom: 30px;
+    }
+     #jamCode {
+        background-color: #1a2b4a; border: 1px solid #00ffff;
+        color: white; font-size: 20px; font-family: 'Fjalla One', sans-serif;
+        padding: 15px; border-radius: 8px; width: 300px;
+        text-align: center; outline: none; transition: box-shadow 0.3s;
+      }
+    #jamCode::placeholder { color: #ffffff80; }
+    #jamCode:focus { box-shadow: 0 0 12px #00ffff; }
+
+    button {
+      font-size: 30px; font-family: 'Caveat', cursive;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 10px;
+      background-color: #0F52BA;
+      color: white;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0c47a1;
+    }
+
+    #enterRoomJoinBtn {
+      display: none;
+    }
+
+    a {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #00ffff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+  </style>
+  <script src="js/navigation.js" defer></script>
+</head>
+<body>
+
+  <a href="index.html">← Back to Home</a>
+  <h1>Join a Jam</h1>
+
+  <input type="text" id="jamCode" placeholder="Enter Jam Code">
+  <button id="enterRoomJoinBtn">Enter the Room</button>
+
+</body>
+</html>

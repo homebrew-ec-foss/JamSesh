@@ -1,92 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Jam Page</title>
-  <!-- Google Fonts: Fjalla One for heading, Caveat for buttons -->
-  <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Fjalla+One&display=swap" rel="stylesheet">
-  <style>
-    body {
-      background-color: #152238;
-      margin: 0;
-      padding: 0;
-      font-family: 'Fjalla One', sans-serif;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      flex-direction: column;
-    }
-
-    .intro-text {
-      font-size: 28px;
-      margin-bottom: 0;
-      color: #ffffffcc;
-      font-family: 'Playfair Display', serif;
-      text-align: center;
-      transition: transform 0.3s ease, text-shadow 0.3s ease;
-      cursor: pointer;
-    }
-
-    /* Magnifying/glow effect on hover */
-    .intro-text:hover {
-      transform: scale(1.1);
-      text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
-    }
-
-    header {
-      font-size: 90px;
-      margin-bottom: 30px;
-      margin-top: 5px;
-      text-align: center;
-      transition: color 0.4s, transform 0.3s, text-shadow 0.4s;
-      cursor: pointer;
-    }
-
-    header:hover {
-      color: #00ffff;
-      transform: scale(1.05);
-      text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
-    }
-
-    .button-container {
-      display: flex;
-      gap: 30px;
-    }
-
-    button {
-      padding: 20px 40px;
-      font-size: 28px;
-      font-family: 'Caveat', cursive;
-      border: none;
-      border-radius: 10px;
-      background-color: #0F52BA;
-      color: white;
-      cursor: pointer;
-      transition: background-color 0.3s, transform 0.2s;
-    }
-
-    button:hover {
-      background-color: #0c47a1;
-      transform: scale(1.05);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>JamSesh - Welcome</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Fjalla+One&family=Playfair+Display&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #152238; margin: 0; padding: 20px;
+            font-family: 'Fjalla One', sans-serif; color: white;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; flex-direction: column; box-sizing: border-box;
+        }
+        header {
+            font-size: 90px; margin-bottom: 20px; text-align: center;
+            color: #33e0e0; text-shadow: 0 0 10px #00cccc, 0 0 20px #00cccc;
+        }
+        .input-container {
+            display: flex; flex-direction: column; align-items: center;
+            margin-bottom: 30px;
+        }
+        #username {
+            background-color: #1a2b4a; border: 1px solid #00ffff;
+            color: white; font-size: 20px; font-family: 'Fjalla One', sans-serif;
+            padding: 15px; border-radius: 8px; width: 300px;
+            text-align: center; outline: none; transition: box-shadow 0.3s;
+        }
+        #username::placeholder { color: #ffffff80; }
+        #username:focus { box-shadow: 0 0 12px #00ffff; }
+        .button-container { display: flex; gap: 30px; }
+        button {
+            padding: 18px 38px; font-size: 26px; font-family: 'Caveat', cursive;
+            border: none; border-radius: 10px; background-color: #0F52BA;
+            color: white; cursor: pointer; transition: all 0.3s ease;
+        }
+        button:hover {
+            background-color: #0c47a1; transform: scale(1.03);
+            box-shadow: 0 0 8px #00cccc, 0 0 16px #00cccc;
+        }
+        button:disabled {
+            background-color: #555; cursor: not-allowed; opacity: 0.5;
+            transform: none; box-shadow: none;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="intro-text">Don't just listen, Connect with</div>
-  <header title="Welcome to JamSesh 🎶">JamSesh</header>
+    <header title="Welcome to JamSesh 🎶">JamSesh</header>
 
-  <div class="button-container">
-    <button id="hostBtn">Host a Jam</button>
-    <button id="joinBtn">Join a Jam</button>
-  </div>
-  <script>
-  const button = document.getElementById('hostBtn');
-  button.addEventListener('click', () => {
-    window.location.href = 'page2.html';
-  });
-</script>
+    <div class="input-container">
+        <input type="text" id="username" placeholder="Enter your name to begin" maxlength="20">
+    </div>
+
+    <div class="button-container">
+        <button id="hostBtn" disabled>Host a Jam</button>
+        <button id="joinBtn" disabled>Join a Jam</button>
+    </div>
+
+    <script>
+        const usernameInput = document.getElementById('username');
+        const hostBtn = document.getElementById('hostBtn');
+        const joinBtn = document.getElementById('joinBtn');
+
+        usernameInput.addEventListener('input', () => {
+            const username = usernameInput.value.trim();
+            const isEnabled = username.length > 0;
+            hostBtn.disabled = !isEnabled;
+            joinBtn.disabled = !isEnabled;
+        });
+
+        hostBtn.addEventListener('click', () => {
+            const username = encodeURIComponent(usernameInput.value.trim());
+            window.location.href = `host.html?username=${username}`;
+        });
+
+        joinBtn.addEventListener('click', () => {
+            const username = encodeURIComponent(usernameInput.value.trim());
+            window.location.href = `join.html?username=${username}`;
+        });
+    </script>
 </body>
 </html>

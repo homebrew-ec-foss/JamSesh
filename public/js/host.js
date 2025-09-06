@@ -1,10 +1,9 @@
-let ws; 
+let ws;
 let clientId = null;
-let isMaster = false;
 const peerConnections = {};
 let localStream;
-let isCallInProgress = false; 
-let allClientIds = [];
+let isCallInProgress = false;
+let allParticipants = []; 
 
 const iceServers = [];
 
@@ -17,12 +16,9 @@ const ADAPTATION_INTERVAL_MS = 5000; // check network every 5 seconds
 
 //html references
 const localAudio = document.getElementById('localAudio');
-const remoteAudio = document.getElementById('remoteAudio');
-
 //initialization and creation of websocket connection
-
 const init = () => {
-    ws = new WebSocket("ws://localhost:8080");
+    ws = new WebSocket("wss://jamsesh-8wui.onrender.com");
     ws.onopen = () => {
         console.log("Websocket connected");
     };
@@ -48,61 +44,157 @@ const init = () => {
             return;
         }
 
-        // Set the first client as the master
-        isMaster = true;
-        console.log("This is the master");
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'start-call',
+                code: roomCode,
+                role: 'host'
+            })); // start call mesg to signalling server
+        }
+
         // Disable the start button and enable the end button
         startBtn.disabled = true;
         endBtn.disabled = false;
         isCallInProgress = true;
 
-        // Acquire media for the master
+        // Acquire media
         try {
-            localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            const audioConstraints = {
+                autoGainControl: false,
+                echoCancellation: false,
+                noiseSuppression: false
+            };
+
+            localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: audioConstraints });
             // stopping the video track
             localStream.getVideoTracks().forEach(track => track.stop());
             console.log("Master has acquired local audio stream.");
             localAudio.srcObject = localStream;
-
-            localStream.getTracks().forEach(track => {
-                track.onended = () => {
-                    console.log("Master's audio share ended");
-                    if (isCallInProgress) {
-                        endCall();
-                    }
-                };
-            });
-
-            // for the server to know who the master is
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'set-master' }));
-            } 
-
-            // creates offer for all existing clients
-            console.log("Creating offers for existing clients:", allClientIds);
-            for (const otherClientId of allClientIds) {
-                if (otherClientId !== clientId) {
-                    await createAndSendOffer(otherClientId);
-                }
+            console.log("Sending offers to all existing clients:", allParticipants);
+        for (const participant of allParticipants) {
+            if (participant.id !== clientId) {
+                await createAndSendOffer(participant.id);
             }
-
-
-        } catch (error) {
-            console.error("Master failed to acquire media:", error);
-            endCall();
-            return;
         }
+        endBtn.disabled = false; // Enable end button only after successful setup
 
-    });
+    } catch (error) {
+        console.error("Master failed to acquire media:", error);
+        endCall();
+        return;
+    }
+});
 
     endBtn.addEventListener('click', () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'end-call' }));// end call mesg to signalling server
+            ws.send(JSON.stringify({
+                type: 'end-call',
+                code: roomCode,
+                role: 'host'
+            })); // end call mesg to signalling server
         }
         endCall();
     });
-};
+}
 
+async function handleSignalingMessage(event) {
+    const data = JSON.parse(event.data);
+    switch (data.type) {
+        case 'init': {
+            clientId = data.clientId;
+            console.log(`My Host ID is: ${clientId}`);
+            if (window.currentClientId === null) {
+                window.currentClientId = clientId;
+            }
+            // The roomCode is searched on load
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('code');
+            const username = urlParams.get('username');
+            ws.send(JSON.stringify({ type: 'joinroom', code: roomCode, from: clientId, username: username }));
+            break;
+        }
+
+        case 'join_success': { 
+            console.log(`Successfully joined room ${data.code}.`);
+            allParticipants = data.participants;
+            if (typeof window.updateParticipantList === 'function') {
+                window.updateParticipantList(allParticipants);
+            }
+            const participantNames = allParticipants.map(p => p.username);
+            console.log('Participants in room:', participantNames);
+            break;
+        }
+        
+        case 'user-joined': {
+            const newParticipant = data.newParticipant;
+            if (!newParticipant) break;
+            console.log(`New user ${newParticipant.username} (${newParticipant.id}) joined.`);
+            allParticipants.push(newParticipant);
+            if (typeof window.updateParticipantList === 'function') {
+                window.updateParticipantList(allParticipants);
+            }
+            if (localStream) {
+                await createAndSendOffer(newParticipant.id);
+            }
+            break;
+        }
+        case 'client-left': {
+            const leavingParticipant = data.participant;
+            if (!leavingParticipant) break;
+            const leftClientId = leavingParticipant.id;
+            console.log(`Client ${leavingParticipant.username} (${leftClientId}) left.`);
+            allParticipants = allParticipants.filter(p => p.id !== leftClientId);
+            if (typeof window.updateParticipantList === 'function') {
+                window.updateParticipantList(allParticipants);
+            }
+            if (peerConnections[leftClientId]) {
+                peerConnections[leftClientId].close();
+                delete peerConnections[leftClientId];
+                console.log(`Closed connection to ${leftClientId}`);
+            }
+            break;
+        }
+
+        case 'answer': {
+            const answererId = data.from;
+            const peer = peerConnections[answererId]; // get the whole peer object
+            if (!peer || !peer.pc) {
+                console.error("Answer received but peerConnection not initialized for:", answererId);
+                return;
+            }
+            await peer.pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            console.log(`Received answer from ${answererId}. Call established.`);
+
+            // check network conection quality for this peer
+            if (peer && !peer.monitorInterval) {
+                peer.monitorInterval = setInterval(() => {
+                    monitorAndAdaptBitrate(answererId);
+                }, ADAPTATION_INTERVAL_MS);
+                console.log(`network quality monitoring for ${answererId}.`);
+            }
+            break;
+        }
+
+        case 'ice-candidate': {
+            const peerId = data.from;
+            const pc = peerConnections[peerId]?.pc; 
+            if (pc && data.candidate) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                } catch (e) {
+                    console.warn('ICE candidate error:', e);
+                }
+            } else {
+                console.warn(`ICE candidate received for unknown peer ${peerId} or no candidate data.`);
+            }
+            break;
+        }
+
+        case 'end-call':
+            endCall();
+            break;
+    }
+}
 
 async function createAndSendOffer(targetClientId) { 
     if (peerConnections[targetClientId]) {
@@ -176,136 +268,6 @@ async function createAndSendOffer(targetClientId) {
     console.log(`Offer sent to ${targetClientId}`);
 }
 
-async function handleSignalingMessage(event) {
-
-    const data = JSON.parse(event.data);
-
-    if (data.type === 'init') {
-        clientId = data.clientId;
-        allClientIds = data.allClients; 
-        console.log(`I am ${clientId}. Existing clients:`, allClientIds);
-        return;
-
-    }
-
-    console.log("received signal:", data.type);
-
-    switch (data.type) {
-        case 'set-master': {
-            // The server sends this to everyone except the master
-            if (data.masterId !== clientId) {
-                console.log(`Master has been set to: ${data.masterId}. I am a LISTENER.`);
-            }
-            return;
-        }
-
-        case 'new-client': {
-            const newClientId = data.clientId;
-            if (!newClientId) {
-                console.error("BUG FOUND: Server did not send a clientId for the new client.");
-                return; 
-            }
-            console.log(`New client ${newClientId} joined.`);
-            // Add new client to our list
-            allClientIds.push(newClientId); 
-            
-            // If we are the master and a stream is active, send the new client an offer.
-            if (isMaster && localStream) {
-                 await createAndSendOffer(newClientId);
-            }
-            break;
-        }
-
-        case 'client-left': {
-            const leftClientId = data.clientId;
-            console.log(`Client ${leftClientId} left.`);
-            // Remove from  list
-            allClientIds = allClientIds.filter(id => id !== leftClientId); 
-            // Close the peer connection if it exists
-            if (peerConnections[leftClientId]) {
-                if (peerConnections[leftClientId].monitorInterval) {
-                    clearInterval(peerConnections[leftClientId].monitorInterval);
-                }
-                peerConnections[leftClientId].pc.close();
-                delete peerConnections[leftClientId];
-                console.log(`Closed connection to ${leftClientId}`);
-            }
-            break;
-        }
-
-        case 'offer': {
-            if (!isMaster) {
-                const offererId = data.from;
-                // get the pc instance from our stored object
-                let pc = peerConnections[offererId]?.pc;
-
-                if (!pc) {
-                    pc = await createPeerConnection(offererId);
-                    peerConnections[offererId] = { pc: pc };
-                }
-                
-                await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-
-                ws.send(JSON.stringify({ type: 'answer', sdp: pc.localDescription, to: data.from, from: clientId}));
-                
-                isCallInProgress = true;
-                endBtn.disabled = false; 
-                startBtn.disabled = true;
-                console.log("Received and answered an offer from the master.");
-            } else {
-                console.warn("Master received an unexpected offer. Ignoring.");
-            }
-            break;
-        }
-
-        case 'answer': {
-            if (isMaster) {
-                const answererId = data.from;
-                const peer = peerConnections[answererId]; // get the whole peer object
-                if (!peer || !peer.pc) {
-                    console.error("Answer received but peerConnection not initialized for:", answererId);
-                    return;
-                }
-                await peer.pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-                console.log(`Received answer from ${answererId}. Call established.`);
-
-                // check network conection quality for this peer
-                if (peer && !peer.monitorInterval) {
-                    peer.monitorInterval = setInterval(() => {
-                        monitorAndAdaptBitrate(answererId);
-                    }, ADAPTATION_INTERVAL_MS);
-                    console.log(`network quality monitoring for ${answererId}.`);
-                }
-
-            } else {
-                console.warn("Listener received an unexpected answer. Ignoring.");
-            }
-            break;
-        }
-
-        case 'ice-candidate': {
-            const peerId = data.from;
-            const pc = peerConnections[peerId]?.pc; 
-            if (pc && data.candidate) {
-                try {
-                    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-                } catch (e) {
-                    console.warn('ICE candidate error:', e);
-                }
-            } else {
-                console.warn(`ICE candidate received for unknown peer ${peerId} or no candidate data.`);
-            }
-            break;
-        }
-
-        case 'end-call':
-            endCall();
-            break;
-    }
-}
-
 async function createPeerConnection(peerId) {
 
     const sessionIceServers = [...iceServers];
@@ -326,22 +288,8 @@ async function createPeerConnection(peerId) {
         console.error("Error fetching TURN credentials:", e);
     }
 
-    const pc = new RTCPeerConnection({ iceServers: iceServers });
+    const pc = new RTCPeerConnection({ iceServers: sessionIceServers });
     console.log('PeerConnection initialized.');
-
-    pc.ontrack = event => {
-        // plays audio
-        console.log('Remote track received', event.streams[0]);
-        if (remoteAudio) { 
-            remoteAudio.srcObject = event.streams[0];
-            remoteAudio.play()
-                .catch(e => {
-                    console.warn("Autoplay was blocked. User must interact with the page first.", e.name);
-                });
-        }else {
-            console.warn("Remote audio element not found");
-        }
-    };
 
     pc.onconnectionstatechange = () => {
         console.log(`Peer Connection State for ${peerId}:`, pc.connectionState);
@@ -430,7 +378,6 @@ function endCall() {
 
     console.log("ending call");
     isCallInProgress = false;
-    isMaster = false; // Also reset master status
 
     // loop and clear intervals before closing connections
     for (const id in peerConnections) {
@@ -448,7 +395,6 @@ function endCall() {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
-    if (remoteAudio) remoteAudio.srcObject = null;
     if (localAudio) localAudio.srcObject = null;
     
     startBtn.disabled = false;

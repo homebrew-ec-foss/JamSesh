@@ -1,20 +1,24 @@
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-
+const { v4: uuidv4 } = require('uuid');
+const cors = require('cors');
 const path = require('path');
-const dotenv = require('dotenv');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server }); 
 const clients = new Map();
+const activeRooms = new Map();
 
-dotenv.config();
-
-let masterClientId = null;
+app.use(cors()); 
 
 app.use(express.static(path.join(__dirname, '../public')));
+
+const timesyncServer = require('timesync/server');
+app.use('/timesync', timesyncServer.requestHandler);
 
 app.get('/api/ping', (req, res) => {
     res.send('pong');
@@ -24,124 +28,136 @@ app.get('/api/get-turn-credentials', async (req, res) => {
     try {
         const turnApiLink = process.env.TURN_API_LINK;
         if (!turnApiLink) {
-            console.error("Server: TURN_API_LINK not found in .env file!");
-            return res.status(500).json([]);
+            throw new Error("TURN_API_LINK not found in .env file!");
         }
-
         const response = await fetch(turnApiLink);
-
         if (!response.ok) {
-            console.error(`Server: Failed to fetch TURN credentials from provider: ${response.status} ${response.statusText}`);
-            return res.status(response.status).json([]);
+            throw new Error(`Failed to fetch from provider: ${response.statusText}`);
         }
-
-        const turnCredentials = await response.json();
-        console.log("Server: Successfully fetched TURN credentials from provider");
-        res.json(turnCredentials);
+        const credentials = await response.json();
+        res.json(credentials);
     } catch (error) {
-        console.error("Server: Error fetching TURN credentials:", error);
-        res.status(500).json([]);
+        console.error("Server: Error fetching TURN credentials:", error.message);
+        res.status(500).json({ error: "Failed to get TURN credentials." });
     }
 });
 
-wss.on('connection', function connection(ws) {    // Registering event handler (fn runs when client connects)
-    // new ID assigned for a new client
-    const clientId = Math.random().toString(36).substring(2, 10);
-    clients.set(clientId, ws);
+wss.on('connection', (ws) => {
+    // new client assigned id
+    const clientId = uuidv4();
     ws.clientId = clientId;
+    clients.set(clientId, ws);
+    console.log(`Client ${clientId} connected. Total clients: ${clients.size}`);
 
-    console.log(`[Server] New client connected: ${clientId}`);
+    ws.send(JSON.stringify({ type: 'init', clientId: clientId }));
 
-
-    //sending new client info to the other connected clients
-    ws.send(JSON.stringify({
-        type: 'init', 
-        clientId: clientId,
-        allClients: Array.from(clients.keys()).filter(id => id !== clientId),
-    }));
-
-    clients.forEach((clientWs, id) => {
-        if (id !== clientId && clientWs.readyState === WebSocket.OPEN) {
-            clientWs.send(JSON.stringify({
-                type: 'new-client', 
-                clientId: clientId
-            }));
-        }
-    });
-
-    ws.on('message', function incoming(message) {   // Setting event listener for message events (whenever client sends data)
-        const messageString = message.toString();
-        const data = JSON.parse(messageString);
-
-        if (data.to && clients.has(data.to)) {
-            const targetClient = clients.get(data.to);
-            if (targetClient && targetClient.readyState === WebSocket.OPEN) {
-                // Add 'from' field so the receiver knows who sent it
-                const relayedData = { ...data, from: ws.clientId };
-                targetClient.send(JSON.stringify(relayedData));
-                console.log(`[Server] Relayed ${data.type} from ${ws.clientId} to ${data.to}`);
-            }
-            else {
-                console.warn(`[Server] Target client ${data.to} is not available.`);
-            }
-        } 
-        else{
-                        switch (data.type) {
-                case 'set-master':
-                    masterClientId = ws.clientId;
-                    console.log(`[Server] Master set to ${masterClientId}`);
-                    // Broadcast to all *other* clients who the master is
-                    clients.forEach((clientWs, id) => {
-                        if (id !== ws.clientId && clientWs.readyState === WebSocket.OPEN) {
-                            clientWs.send(JSON.stringify({ type: 'set-master', masterId: masterClientId }));
-                        }
-                    });
-                    break;
-                case 'end-call':
-                    console.log(`[Server] Master ${ws.clientId} ended the call. Broadcasting.`);
-                    masterClientId = null; // Reset master
-                    // Broadcast the end-call signal to everyone except the sender
-                    clients.forEach((clientWs, id) => {
-                        if (id !== ws.clientId && clientWs.readyState === WebSocket.OPEN) {
-                           clientWs.send(JSON.stringify({ type: 'end-call', from: ws.clientId }));
-                        }
-                    });
-                    break;
-                default:
-                    console.log(`[Server] Received unhandled message type: ${data.type}`);
-            }
-        }
-
-    });
-    
-    ws.on('close', () => {
-        console.log("[Server] Client disconnected.");
-        clients.delete(ws.clientId);
-
-        if (ws.clientId === masterClientId) {
-            console.log(`[Server] Master has disconnected. Ending call for all.`);
-            masterClientId = null;
-        }
-
-        
-        clients.forEach((clientWs, id) => {
-            if (clientWs.readyState === WebSocket.OPEN) {
-                clientWs.send(JSON.stringify({
-                    type: 'client-left',
-                    clientId: ws.clientId
-                }));
-            }
-        });
-    });
-
-    ws.on('error', (error) => {
-        console.error(`[Server] WebSocket error for client ${ws.clientId}:`, error);
-    });
+    ws.on('message', (message) => handleClientMessage(ws, message));
+    ws.on('close', () => handleClientDisconnect(ws));
 });
 
+function handleClientMessage(ws, message) {
+    const data = JSON.parse(message.toString());
+    const clientId = ws.clientId;
+    const roomCode = ws.roomCode; 
+
+    switch (data.type) {
+        case 'create_room':
+            const newCode = generateUniqueCode();
+            activeRooms.set(newCode, { clients: [] });
+            ws.send(JSON.stringify({ type: 'room_created', code: newCode }));
+            console.log(`Room ${newCode} created.`);
+            break;
+
+        case 'validation':
+            ws.send(JSON.stringify({
+                type: 'validation',
+                status: activeRooms.has(data.code) ? 'valid' : 'invalid'
+            }));
+            break;
+
+        case 'joinroom':
+            const codeToJoin = data.code;
+            if (activeRooms.has(codeToJoin)) {
+                const room = activeRooms.get(codeToJoin);
+                
+                // new client has joined
+                const newParticipant = { id: clientId, username: data.username };
+
+                // Notify existing participants
+                room.clients.forEach(p => {
+                    const clientWs = clients.get(p.id);
+                    if (clientWs) clientWs.send(JSON.stringify({ type: 'user-joined', newParticipant }));
+                });
+
+                // Add the new participant object to the room
+                room.clients.push(newParticipant);
+                ws.roomCode = codeToJoin;
+
+                // Send success message with the full list of participant objects
+                ws.send(JSON.stringify({ type: 'join_success', code: codeToJoin, participants: room.clients }));
+            }
+            break;
+
+        case 'start-call':
+        case 'end-call':
+            if (roomCode && activeRooms.has(roomCode)) {
+                const room = activeRooms.get(roomCode);
+                room.clients.forEach(id => {
+                    if (id !== clientId) { 
+                        const clientWs = clients.get(id);
+                        if (clientWs) clientWs.send(JSON.stringify({ type: data.type }));
+                    }
+                });
+            }
+            break;
+
+            case 'offer':
+        case 'answer':
+        case 'ice-candidate':
+            const targetClient = clients.get(data.to);
+            // Security check: ensure target exists and is in the same room.
+            if (targetClient && ws.roomCode === targetClient.roomCode) {
+                targetClient.send(JSON.stringify({ ...data, from: clientId }));
+            }
+            break;
+            
+        default:
+            console.log(`[Server] Received unhandled message type: ${data.type}`);
+    }
+}
+
+function handleClientDisconnect(ws) {
+    const clientId = ws.clientId;
+    const roomCode = ws.roomCode;
+    console.log(`Client ${clientId} disconnected.`);
+
+    if (roomCode && activeRooms.has(roomCode)) {
+        const room = activeRooms.get(roomCode);
+        const leavingParticipant = room.clients.find(p => p.id === clientId);
+        room.clients = room.clients.filter(p => p.id !== clientId);
+
+        room.clients.forEach(p => {
+            const clientWs = clients.get(p.id);
+            if (clientWs) clientWs.send(JSON.stringify({ type: 'client-left', participant: leavingParticipant }));
+        });
+
+        if (room.clients.length === 0) {
+            activeRooms.delete(roomCode);
+            console.log(`Room ${roomCode} is now empty and has been deleted.`);
+        }
+    }
+    clients.delete(clientId); // remove from all list
+}
+
+function generateUniqueCode() {
+    let newCode;
+    do {
+        newCode = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    } while (activeRooms.has(newCode));
+    return newCode;
+}
 
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-    console.log(`Access the app at http://localhost:${PORT}`);
 });

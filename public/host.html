@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Host a Jam</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat&family=Fjalla+One&family=Playfair+Display&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #152238;
+      color: white;
+      font-family: 'Fjalla One', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 60px;
+      margin-bottom: 40px;
+    }
+
+    button {
+      font-size: 30px; font-family: 'Caveat', cursive;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 10px;
+      background-color: #0F52BA;
+      color: white;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0c47a1;
+    }
+
+    #jamCodeDisplay {
+      font-size: 28px;
+      margin-top: 20px;
+      color: #00ffff;
+    }
+
+    #enterRoomHostBtn {
+      display: none;
+    }
+
+    a {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #00ffff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+  </style>
+  <script src="js/navigation.js" defer></script>
+</head>
+<body>
+
+  <a href="index.html">← Back to Home</a>
+  <h1>Host a Jam</h1>
+  <button id="generateCodeBtn">Generate Jam Code</button>
+  <div id="jamCodeDisplay"></div>
+
+  <!-- New Button -->
+  <button id="enterRoomHostBtn">Enter the Room</button>
+
+</body>
+</html>
+
+
